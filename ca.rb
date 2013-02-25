@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 require 'bio'
-require 'nokogiri'
 
 #################################
 #This program is used to take the 'clusterGenes' output from justin's clustering
