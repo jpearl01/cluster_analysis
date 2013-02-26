@@ -45,6 +45,20 @@ File.open(ARGV[0], "r") do |f|
     is_gene_seq = true if line.match('<genes start>')
     is_gene_seq = false if line.match('<genes stop>')
 
+    #populate the gene list
+    if is_gene_seq && line.match('^>(\S+)')
+      clust.gene_list.push($1)
+    end
+
+    #We are in the part of the clusterGenes file that lists the different matched strains
+    is_presence_list = true if line.match('<strains start>')
+    is_presence_list = false if line.match('<strains stop>')
+
+    #populate the presence hash
+    if is_presence_list 
+      clust.presence_list[line.split[0]] = line.split[1]
+    end
+
   end  
 end
 
