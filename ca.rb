@@ -31,7 +31,13 @@ end
 
 class Cluster
 
-  attr_accessor :gene_list, :presence_list
+  attr_accessor :gene_list, :presence_list, :name
 
+end
+
+
+class Gene
+
+  attr_accessor :sequence, :name, :product, :contig, :start, :end, :organism, :strain
 
 end
