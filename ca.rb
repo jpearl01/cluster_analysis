@@ -65,8 +65,6 @@ end
 
 puts all_clusters.size
 
-
-
 d = '/home/josh/workspace/bioruby/cluster_analysis/data/annotations/'
 
 Dir.foreach(d) do |f|
