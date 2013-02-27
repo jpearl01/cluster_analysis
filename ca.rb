@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'bio'
+require 'axlsx'
 
 #################################
 #This program is used to take the 'clusterGenes' output from justin's clustering
@@ -29,7 +29,7 @@ end
 is_gene_seqs     = false
 is_presence_list = false
 all_clusters     = Array.new
-gene_hash = Hash.new
+gene_hash        = Hash.new
 
 File.open(ARGV[0], "r") do |f|
   while (line = f.gets)
@@ -90,7 +90,7 @@ Dir.foreach(d) do |f|
       gene.name.gsub!(gene.contig, genome_name)
 
       #parse out and set the product
-      l.match('(product)=[\'\"]{2}(.+)[\'\"]{2}')
+      l.match('(product)=[\'\"]{1,3}([^\"]+)[\'\"]{1,3}[^;]*')
       gene.product = $2
 
       #check and set if the gene is a complement
@@ -115,5 +115,23 @@ Dir.foreach(d) do |f|
     
   end
 
-  puts gene_hash[genome_name+'_1'].inspect
+end
+
+#Time to add in the final loop that will print out all the annotations for each cluster, separated by line with only the cluster name.
+all_clusters.each_entry do |c|
+  puts c.name
+  if c.gene_list.size > 0
+    c.gene_list.each_entry do |g|
+#      if gene_hash.include? g
+      begin
+        puts '>'+gene_hash[g].name + "\t" + gene_hash[g].product
+      rescue
+        $stderr.puts "The gene #{g} from cluster #{c.name} does not exist in the gene hash"
+        $stderr.puts gene_hash[g].inspect
+        next
+      end
+    end
+  else 
+    $stderr.puts "The cluster #{c.name} does not have any genes in it"
+  end
 end

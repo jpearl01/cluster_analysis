@@ -57,10 +57,10 @@ Dir.foreach(d) do |f|
     
   end
 
-  puts gene_hash[genome_name+'_1'].inspect
+#  puts gene_hash[genome_name+'_1'].inspect
 end
 
-
+puts gene_hash['103P14B1_20'].inspect
 
 
 
