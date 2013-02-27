@@ -29,6 +29,7 @@ end
 is_gene_seqs     = false
 is_presence_list = false
 all_clusters     = Array.new
+gene_hash = Hash.new
 
 File.open(ARGV[0], "r") do |f|
   while (line = f.gets)
@@ -64,7 +65,7 @@ end
 
 puts all_clusters.size
 
-gene_hash = Hash.new
+
 
 d = '/home/josh/workspace/bioruby/cluster_analysis/data/annotations/'
 
