@@ -5,50 +5,64 @@ class Gene
   #Here the db_xref is an array
   attr_accessor :sequence, :name, :product, :contig, :start, :end, :organism, :strain, :db_xref, :is_complement
 end
+gene_hash = Hash.new
 
-gene_list = []
+d = '/home/josh/workspace/bioruby/cluster_analysis/data/annotations/'
 
-Dir.foreach('data/annotations/') do |f|
+Dir.foreach(d) do |f|
   next if f == '.' or f == '..'
-  
-end
-ex_file = 'data/annotations/B502.fasta'
 
-fh = File.open(ex_file, 'r')
+  fh = File.open(d+f, 'r')
+  genome_name = File.basename(f, '.*')
+  puts "#{f} is the current file"
 
-genome_name = File.basename(ex_file, '.*')
+  fh.each_line do |l|
+    
+    if l.match('>')
 
-fh.each_line do |l|
-  
-  if l.match('>')
-    next if l.match(' Contig ')
-    gene = Gene.new
-    gene.strain = genome_name
-    l.match('>([\S]+)')
-    gene.name = $1
-    gene.contig = gene.name.split('_')[0]
-    gene.name.gsub!(gene.contig, genome_name)
-#    puts gene.name
-    l.match('(product)=[\'\"]{2}(.+)[\'\"]{2}')
-    gene.product = $2
-#    puts gene.product
-    if l.match('complement')
-      gene.is_complement = true
-    else
-      gene.is_complement = false
+      #just incase we missed a contig entry, unlikely.
+      next if l.match(' Contig ')
+      gene = Gene.new
+
+      #parse out the current gene name, update it, and set which contig the gene came from
+      gene.strain = genome_name
+      l.match('>([\S]+)')
+      gene.name = $1
+      gene.contig = gene.name.split('_')[0]
+      gene.name.gsub!(gene.contig, genome_name)
+
+      #parse out and set the product
+      l.match('(product)=[\'\"]{2}(.+)[\'\"]{2}')
+      gene.product = $2
+
+      #check and set if the gene is a complement
+      if l.match('complement')
+        gene.is_complement = true
+      else
+        gene.is_complement = false
+      end
+
+      #get and set start and end locations
+      l.match('loc=[complement]*\(*(\d+)\.\.(\d+)\)*')
+      gene.start = $1.to_i
+      gene.end   = $2.to_i
+
+      #Adding a check to see if more than one db_xref
+      gene.db_xref = l.scan(/db_xref="[^"]+/)
+      gene.db_xref.each_entry {|s| s.gsub!('db_xref="', '')}
+
+      #Finally add this gene to the gene hash
+      gene_hash[gene.name]=gene
     end
-    l.match('loc=[complement]*\(*(\d+)\.\.(\d+)\)*')
-    gene.start = $1.to_i
-    gene.end   = $2.to_i
-#    puts "Gene start " + gene.start.to_s + " gene end "+ gene.end.to_s
-    #Adding a check to see if more than one db_xref
-    gene.db_xref = l.scan(/db_xref="[^"]+/)
-    gene.db_xref.each_entry {|s| s.gsub!('db_xref="', '')}
-#    puts "The list of db_xrefs is " + gene.db_xref.join(' ')
-    gene_list.push(gene)
+    
   end
 
+  puts gene_hash[genome_name+'_1'].inspect
 end
 
-puts "Total genes are: "+ gene_list.size.to_s
-puts gene_list.first.inspect
+
+
+
+
+
+
