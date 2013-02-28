@@ -1,2 +1,6 @@
 data/*
 !data/clusterGenes
+#.*
+\..*
+test.*
+errors

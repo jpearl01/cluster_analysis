@@ -67,6 +67,10 @@ puts all_clusters.size
 
 d = '/home/josh/workspace/bioruby/cluster_analysis/data/annotations/'
 
+#Assuming that in the directory there are only annotation files, and only the number of annotation files for this project
+NUM_STRAINS = Dir.entries(d).size - 2
+puts "The number of strains are: #{NUM_STRAINS}"
+
 Dir.foreach(d) do |f|
   next if f == '.' or f == '..'
 
@@ -122,7 +126,7 @@ all_clusters.each_entry do |c|
   puts c.name
   if c.gene_list.size > 0
     c.gene_list.each_entry do |g|
-#      if gene_hash.include? g
+      #This ruby's version of a try/catch block
       begin
         puts '>'+gene_hash[g].name + "\t" + gene_hash[g].product
       rescue
@@ -135,3 +139,52 @@ all_clusters.each_entry do |c|
     $stderr.puts "The cluster #{c.name} does not have any genes in it"
   end
 end
+
+
+p = Axlsx::Package.new
+wb = p.workbook
+
+#Build the sheets needed for this project into the workbook
+(1..NUM_STRAINS).each_entry do |i|
+  wb.add_worksheet(:name => "cluster_size_#{i}") do |sheet|
+    sheet.add_row ["All clusters of size #{i}"]
+    sheet.add_row %w(Strain Gene_Name Contig Start End Complement Product)
+  end
+end
+
+#There is a chance we'll run into clusters that have more genes than the number of strains (duplicate genes and whatnot)
+#Adding a worksheet for that eventuality:
+wb.add_worksheet(name: "cluster_size_gt_#{NUM_STRAINS}" ) do |sheet|
+  sheet.add_row ["All clusters greater than size #{NUM_STRAINS}"]
+  sheet.add_row %w(Strain Gene_Name Contig Start End Complement Product)
+end
+
+#Now populate the worksheets with the different clusters
+all_clusters.each_entry do |c|
+  c_size = c.gene_list.size
+  if c_size <= NUM_STRAINS
+    wb.sheet_by_name("cluster_size_#{c_size}").add_row [c.name]
+    c.gene_list.each_entry do |g|
+      wb.sheet_by_name("cluster_size_#{c_size}").add_row [ gene_hash[g].strain, 
+                                                           gene_hash[g].name, 
+                                                           gene_hash[g].contig, 
+                                                           gene_hash[g].start, 
+                                                           gene_hash[g].end, 
+                                                           gene_hash[g].is_complement, 
+                                                           gene_hash[g].product ]
+    end
+  else
+    wb.sheet_by_name("cluster_size_gt_#{NUM_STRAINS}").add_row [c.name, "Total Size: #{c_size}"]
+    c.gene_list.each_entry do |g|
+      wb.sheet_by_name("cluster_size_gt_#{NUM_STRAINS}").add_row [ gene_hash[g].strain, 
+                                                                   gene_hash[g].name, 
+                                                                   gene_hash[g].contig, 
+                                                                   gene_hash[g].start, 
+                                                                   gene_hash[g].end, 
+                                                                   gene_hash[g].is_complement, 
+                                                                   gene_hash[g].product ]
+    end
+  end
+end
+
+p.serialize("trial_gene_list.xlsx")
