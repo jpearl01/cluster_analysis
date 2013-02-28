@@ -76,11 +76,11 @@ wb.add_worksheet(:name => "All Genes") do | sheet |
   end
 end
 
-puts wb.sheet_by_name("All Genes").inspect
+wb.sheet_by_name("All Genes").add_row['stuff','does this get added, I hope?']
 
 # do |sheet|
 #  puts 'even happen?'
-#  sheet.add_row['stuff','does this get added, I hope?']
+#  sheet
 #end
 #puts 'wth'
 
