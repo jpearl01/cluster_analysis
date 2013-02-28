@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require 'axlsx'
 
 class Gene
   #Here the db_xref is an array
@@ -56,13 +57,32 @@ Dir.foreach(d) do |f|
     end
     
   end
-
+break
 #  puts gene_hash[genome_name+'_1'].inspect
 end
 
-puts gene_hash['103P14B1_20'].inspect
+#puts gene_hash['MX1_1'].inspect
 
 
 
+p = Axlsx::Package.new
 
+wb = p.workbook
+
+wb.add_worksheet(:name => "All Genes") do | sheet |
+
+  gene_hash.each_entry do |g|
+    sheet.add_row [ g[1].strain, g[1].name, g[1].start, g[1].end, g[1].is_complement, g[1].product ]
+  end
+end
+
+puts wb.sheet_by_name("All Genes").inspect
+
+# do |sheet|
+#  puts 'even happen?'
+#  sheet.add_row['stuff','does this get added, I hope?']
+#end
+#puts 'wth'
+
+p.serialize("trial_gene_list.xlsx")
 
