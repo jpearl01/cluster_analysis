@@ -3,5 +3,5 @@ data/*
 #.*
 .*
 \..*
-test.*
+test*
 errors

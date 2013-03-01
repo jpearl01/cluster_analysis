@@ -10,7 +10,7 @@ require 'trollop'
 #location on the contig the gene is from, and the annotation information 
 #provided from RAST (or wherever).
 #
-#Requirements are the clusterGenes file and the annotation (gff or gbk)
+#Requirements are the clusterGenes file and the directory where annotation 
 #files for the annotations of each genome.
 #################################
 
@@ -178,6 +178,12 @@ wb.add_worksheet(name: "cluster_size_gt_#{NUM_STRAINS}" ) do |sheet|
   sheet.add_row %w(Strain Gene_Name Contig Start End Complement Product)
 end
 
+background = ''
+#Try adding styles here?
+wb.styles do |s|
+  background = s.add_style bg_color: 'FFFFCC'
+end
+
 #Now populate the worksheets with the different clusters
 all_clusters.each_entry do |c|
   c_size = c.gene_list.size
@@ -190,7 +196,7 @@ all_clusters.each_entry do |c|
                                                            gene_hash[g].start, 
                                                            gene_hash[g].end, 
                                                            gene_hash[g].is_complement, 
-                                                           gene_hash[g].product ]
+                                                           gene_hash[g].product ], style: background
     end
   else
     wb.sheet_by_name("cluster_size_gt_#{NUM_STRAINS}").add_row [c.name, "Total Size: #{c_size}"]
