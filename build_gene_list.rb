@@ -72,11 +72,12 @@ wb = p.workbook
 (1..31).each_entry do |i|
   wb.add_worksheet(:name => "cluster_size_#{i}") do | sheet |
     sheet.add_row ['some example']
-#    gene_hash.each_entry do |g|
-#      sheet.add_row [ g[1].strain, g[1].name, g[1].start, g[1].end, g[1].is_complement, g[1].product ]
-#    end
   end
 end
+
+#Now populate the worksheets with the different clusters
+
+
 
 wb.sheet_by_name("cluster_size_1").add_row ['stuff','does this get added, I hope?']
 
