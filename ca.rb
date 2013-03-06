@@ -212,4 +212,4 @@ all_clusters.each_entry do |c|
   end
 end
 
-p.serialize("trial_gene_list.xlsx")
+p.serialize("clustered_gene_list.xlsx")
