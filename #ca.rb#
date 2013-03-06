@@ -20,7 +20,6 @@ d = '/home/josh/workspace/bioruby/cluster_analysis/data/annotations/'
 opts = Trollop::options do
   opt :clust_genes, "Mandatory clusterGenes file (output from Justin's clsuterGenes.pl program)", type: :string, short: '-c'                     
   opt :directory, "Mandatory directory where the fasta annotation files are (directory cannot have other files)", type: :string, short: '-d'
-  opt :gene_map, "Optional gene map file, if you need to replace gene names.  Of the form:\ncurrentName_1\tnewName_1\ncurrentName_2\tnewName_2\n", type: :string, short: '-m'
 end
 
 abort("Must have a clusterGenes file defined '-h' or '--help' for usage") if opts[:clust_genes].nil?
@@ -42,7 +41,6 @@ end
 is_gene_seqs     = false
 is_presence_list = false
 all_clusters     = []
-genome_list      = []
 gene_hash        = {}
 
 
@@ -97,7 +95,6 @@ Dir.foreach(opts[:directory]) do |f|
 
   fh = File.open(d+f, 'r')
   genome_name = File.basename(f, '.*')
-  genome_list.push(genome_name)
   puts "#{f} is the current file"
 
   fh.each_line do |l|
@@ -181,7 +178,7 @@ wb2 = p2.workbook
 
   wb2.add_worksheet(:name => "cluster_size_#{i}") do |sheet|
     sheet.add_row ["All clusters of size #{i}"]
-    sheet.add_row genome_list.sort
+    sheet.add_row all_clusters.first.presence_list.sort
   end
 
 end
