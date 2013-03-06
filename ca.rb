@@ -18,7 +18,7 @@ d = '/home/josh/workspace/bioruby/cluster_analysis/data/annotations/'
 
 #Setup options hash
 opts = Trollop::options do
-  opt :clust_genes, "The mandatory clusterGenes file", type: :string, short: '-c'                     
+  opt :clust_genes, "Mandatory clusterGenes file (output from Justin's clsuterGenes.pl program)", type: :string, short: '-c'                     
   opt :directory, "Mandatory directory where the fasta annotation files are (directory cannot have other files)", type: :string, short: '-d'
 end
 
