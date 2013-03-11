@@ -80,7 +80,7 @@ File.open(opts[:clust_genes], "r") do |f|
       clust.presence_list[line.split[0]] = line.split[1] unless line.match('<strains start>')
     end
 
-  end  
+  end
 end
 
 puts all_clusters.size
@@ -163,11 +163,11 @@ all_clusters.each_entry do |c|
   end
 end
 
-#Add a workbook 
+#Add the first workbook, this holds the original annotation data for each cluster
 p = Axlsx::Package.new
 wb = p.workbook
 
-#Add another workbook for the 0/1 presence entries, basically mirroring the previous one
+#Add another workbook for the 0/1 presence entries, essentially mirrors the first one
 p2 = Axlsx::Package.new
 wb2 = p2.workbook
 
@@ -187,7 +187,7 @@ wb2 = p2.workbook
 end
 
 #There is a chance we'll run into clusters that have more genes than the number of strains (duplicate genes and whatnot)
-#Adding a worksheet for that eventuality:
+#Adding a worksheet for that eventuality, this isn't an issue in the presence workbook, as if it is there at least once it is a 1, 0 otherwise
 wb.add_worksheet(name: "cluster_size_gt_#{NUM_STRAINS}" ) do |sheet|
   sheet.add_row ["All clusters greater than size #{NUM_STRAINS}"]
   sheet.add_row %w(Strain Gene_Name Contig Start End Complement Product)
@@ -231,3 +231,4 @@ all_clusters.each_entry do |c|
 end
 
 p.serialize("clustered_gene_list.xlsx")
+p2.serialize("presence_list.xlsx")
