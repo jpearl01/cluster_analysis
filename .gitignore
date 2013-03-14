@@ -5,3 +5,5 @@ data/*
 \..*
 test*
 errors
+clustered_gene_list.xlsx
+presence_list.xlsx

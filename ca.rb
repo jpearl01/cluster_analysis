@@ -128,9 +128,10 @@ Dir.foreach(opts[:directory]) do |f|
 
       #get and set start and end locations
       l.match('loc=[complement]*\(*(\d+)\.\.(\d+)\)*')
-      $stderr.puts "There is probably a complex gene with name #{gene.name}, currently have to manually fix this" if l.match('join\(')
       gene.start = $1.to_i
       gene.end   = $2.to_i
+      $stderr.puts "There is probably a complex gene with name #{gene.name}, currently have to manually fix this" if l.match('join\(')
+
 
       #Adding a check to see if more than one db_xref
       gene.db_xref = l.scan(/db_xref="[^"]+/)
@@ -181,9 +182,17 @@ wb2 = p2.workbook
 
   wb2.add_worksheet(:name => "cluster_size_#{i}") do |sheet|
     sheet.add_row ["All clusters of size #{i}"]
-    sheet.add_row genome_list.sort
+    genomes_sorted = genome_list.sort
+    genomes_sorted.unshift("")
+    sheet.add_row genomes_sorted
   end
 
+end
+
+#On second though, really all we need is a new sheet in the workbook which has the presence/absence lists
+wb.add_worksheet(name: "Presence_Absence") do |sheet|
+  sheet.add_row ["Cluster Presence/Absence"]
+  sheet.add_row genome_list.sort
 end
 
 #There is a chance we'll run into clusters that have more genes than the number of strains (duplicate genes and whatnot)
@@ -205,6 +214,15 @@ end
 #Now populate the worksheets with the different clusters
 all_clusters.each_entry do |c|
   c_size = c.gene_list.size
+  #Annoyingly, I'm not sure how to do the pres/absence thing except by a little bit of a wonky enumerable
+  pres = []
+  pres.push(c.name)
+  c.presence_list.sort_by {|genome, pres| genome}.each_entry do |p|
+    pres.push(p[1])
+  end
+  wb.sheet_by_name("Presence_Absence").add_row pres
+
+
   if c_size <= NUM_STRAINS
     wb.sheet_by_name("cluster_size_#{c_size}").add_row [c.name]
     c.gene_list.each_entry do |g|
