@@ -44,7 +44,17 @@ is_presence_list = false
 all_clusters     = []
 genome_list      = []
 gene_hash        = {}
+gene_map         = {}     
 
+#Read in the map file
+if !opts[:gene_map].nil?
+  File.open(opts[:gene_map], "r") do |f|
+    while (line = f.gets)
+      a = line.split
+      gene_map[a[0]] = a[1]
+    end
+  end
+end
 
 #Read in the clusterGenes file
 
@@ -68,7 +78,11 @@ File.open(opts[:clust_genes], "r") do |f|
 
     #populate the gene list
     if is_gene_seq && line.match('^>(\S+)')
-      clust.gene_list.push($1)
+      if gene_map.has_key?($1)
+        clust.gene_list.push(gene_map[$1])
+      else
+        clust.gene_list.push($1)
+      end
     end
 
     #We are in the part of the clusterGenes file that lists the different matched strains
@@ -109,11 +123,15 @@ Dir.foreach(opts[:directory]) do |f|
       gene = Gene.new
 
       #parse out the current gene name, update it, and set which contig the gene came from
+      #This is a little tricky... have to pay attention to the gene map names, they should match the genome name
       gene.strain = genome_name
       l.match('>([\S]+)')
       gene.name = $1
       gene.contig = gene.name.split('_')[0]
       gene.name.gsub!(gene.contig, genome_name)
+      if gene_map.has_key?(gene.name)
+        gene.name = gene_map[gene.name]
+      end
 
       #parse out and set the product
       l.match('(product)=[\'\"]{1,3}([^\"]+)[\'\"]{1,3}[^;]*')
