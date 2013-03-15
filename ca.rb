@@ -186,9 +186,6 @@ end
 p = Axlsx::Package.new
 wb = p.workbook
 
-#Add another workbook for the 0/1 presence entries, essentially mirrors the first one
-p2 = Axlsx::Package.new
-wb2 = p2.workbook
 
 #Build the sheets needed for this project into the workbook
 (1..NUM_STRAINS).each_entry do |i|
@@ -196,13 +193,6 @@ wb2 = p2.workbook
   wb.add_worksheet(:name => "cluster_size_#{i}") do |sheet|
     sheet.add_row ["All clusters of size #{i}"]
     sheet.add_row %w(Strain Gene_Name Contig Start End Complement Product)
-  end
-
-  wb2.add_worksheet(:name => "cluster_size_#{i}") do |sheet|
-    sheet.add_row ["All clusters of size #{i}"]
-    genomes_sorted = genome_list.sort
-    genomes_sorted.unshift("")
-    sheet.add_row genomes_sorted
   end
 
 end
@@ -219,9 +209,6 @@ wb.add_worksheet(name: "cluster_size_gt_#{NUM_STRAINS}" ) do |sheet|
   sheet.add_row ["All clusters greater than size #{NUM_STRAINS}"]
   sheet.add_row %w(Strain Gene_Name Contig Start End Complement Product)
 end
-
-
-
 
 background = ''
 #Try adding styles here?
@@ -267,4 +254,4 @@ all_clusters.each_entry do |c|
 end
 
 p.serialize("clustered_gene_list.xlsx")
-p2.serialize("presence_list.xlsx")
+
