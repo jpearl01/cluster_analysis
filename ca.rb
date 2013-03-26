@@ -2,6 +2,7 @@
 
 require 'axlsx'
 require 'trollop'
+require 'yaml'
 
 #################################
 #This program is used to take the 'clusterGenes' output from justin's clustering
@@ -21,6 +22,7 @@ opts = Trollop::options do
   opt :clust_genes, "Mandatory clusterGenes file (output from Justin's clsuterGenes.pl program)", type: :string, short: '-c'                     
   opt :directory, "Mandatory directory where the fasta annotation files are (directory cannot have other files)", type: :string, short: '-d'
   opt :gene_map, "Optional gene map file, if you need to replace gene names.  Of the form:\ncurrentName_1\tnewName_1\ncurrentName_2\tnewName_2\n", type: :string, short: '-m'
+  opt :genome_groups, "Optional clade grouping file in YAML format.", type: :string, short: '-g'
 end
 
 abort("Must have a clusterGenes file defined '-h' or '--help' for usage") if opts[:clust_genes].nil?
@@ -45,6 +47,7 @@ all_clusters     = []
 genome_list      = []
 gene_hash        = {}
 gene_map         = {}     
+genome_groups    = {}
 
 #Read in the map file
 if !opts[:gene_map].nil?
@@ -55,6 +58,16 @@ if !opts[:gene_map].nil?
     end
   end
 end
+
+#Read in the grouping file
+genome_groups  = YAML.load_file(opts[:genome_groups]) if !opts[:genome_groups].nil?
+genome_groups.each { |key, arr|
+  arr.map! {|v| v.to_s}
+#  do |v|
+#    v = v.to_s unless v.class == String
+#  end
+}
+abort("Not converting to string correctly") unless genome_groups['seroresistant'].include? '7169'
 
 #Read in the clusterGenes file
 
@@ -211,10 +224,18 @@ wb.add_worksheet(name: "cluster_size_gt_#{NUM_STRAINS}" ) do |sheet|
 end
 
 background = ''
+group1     = ''
+group2     = ''
 #Try adding styles here?
 wb.styles do |s|
   background = s.add_style bg_color: 'FFFFCC'
+  group1     = s.add_style bg_color: '87CEFA'
+  group2     = s.add_style bg_color: 'FF0000'
 end
+puts background 
+puts group1
+puts group2
+#abort 'troubleshooting'
 
 #Now populate the worksheets with the different clusters
 all_clusters.each_entry do |c|
@@ -228,27 +249,55 @@ all_clusters.each_entry do |c|
   wb.sheet_by_name("Presence_Absence").add_row pres
 
 
+
   if c_size <= NUM_STRAINS
+
     wb.sheet_by_name("cluster_size_#{c_size}").add_row [c.name]
     c.gene_list.each_entry do |g|
+
+      #TODO: Make this be able to read in arbitrary genome groupings
+      name = gene_hash[g].strain.to_s unless gene_hash[g].strain.class == String
+      name = gene_hash[g].strain if gene_hash[g].strain.class == String
+      bkgrnd = 0
+      if genome_groups['seroresistant'].include? name
+        bkgrnd = group2
+      elsif genome_groups['serosensitive'].include? name
+        bkgrnd = group1
+      else
+        bkgrnd = background
+      end
+
       wb.sheet_by_name("cluster_size_#{c_size}").add_row [ gene_hash[g].strain, 
                                                            gene_hash[g].name, 
                                                            gene_hash[g].contig, 
                                                            gene_hash[g].start, 
                                                            gene_hash[g].end, 
                                                            gene_hash[g].is_complement, 
-                                                           gene_hash[g].product ], style: background
+                                                           gene_hash[g].product ], style: bkgrnd
     end
   else
     wb.sheet_by_name("cluster_size_gt_#{NUM_STRAINS}").add_row [c.name, "Total Size: #{c_size}"]
     c.gene_list.each_entry do |g|
+      
+      #TODO: Make this be able to read in arbitrary genome groupings
+      name = gene_hash[g].strain.to_s unless gene_hash[g].strain.class == String
+      name = gene_hash[g].strain if gene_hash[g].strain.class == String
+      bkgrnd = 0
+      if genome_groups['seroresistant'].include? name
+        bkgrnd = group2
+      elsif genome_groups['serosensitive'].include? name
+        bkgrnd = group1
+      else 
+        bkgrnd = background
+      end
+
       wb.sheet_by_name("cluster_size_gt_#{NUM_STRAINS}").add_row [ gene_hash[g].strain, 
                                                                    gene_hash[g].name, 
                                                                    gene_hash[g].contig, 
                                                                    gene_hash[g].start, 
                                                                    gene_hash[g].end, 
                                                                    gene_hash[g].is_complement, 
-                                                                   gene_hash[g].product ]
+                                                                   gene_hash[g].product ], style: bkgrnd
     end
   end
 end
