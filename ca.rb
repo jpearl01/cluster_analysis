@@ -63,12 +63,10 @@ end
 genome_groups  = YAML.load_file(opts[:genome_groups]) if !opts[:genome_groups].nil?
 genome_groups.each { |key, arr|
   arr.map! {|v| v.to_s}
-#  do |v|
-#    v = v.to_s unless v.class == String
-#  end
 }
-abort("Not converting to string correctly") unless genome_groups['seroresistant'].include? '7169'
 
+abort("Not converting to string correctly") unless genome_groups['seroresistant'].include? '7169'
+puts genome_groups.to_yaml
 #Read in the clusterGenes file
 
 File.open(opts[:clust_genes], "r") do |f|
@@ -230,12 +228,13 @@ group2     = ''
 wb.styles do |s|
   background = s.add_style bg_color: 'FFFFCC'
   group1     = s.add_style bg_color: '87CEFA'
-  group2     = s.add_style bg_color: 'FF0000'
+  group2     = s.add_style bg_color: 'ecb0b0'
 end
-puts background 
-puts group1
-puts group2
-#abort 'troubleshooting'
+
+#Need a hash to contain gene classes with more than the normal core max (duplicates, broken gene annotations etc.) so I can print out some stats on it
+#Also want to find the number of clade specific genes, and the number of genes that are cross clade
+gene_class_gt_core = {}
+clade_specific     = {}
 
 #Now populate the worksheets with the different clusters
 all_clusters.each_entry do |c|
@@ -248,7 +247,32 @@ all_clusters.each_entry do |c|
   end
   wb.sheet_by_name("Presence_Absence").add_row pres
 
+  #ok, gotta check each clade's members
+  g1 = 0
+  g2 = 0
 
+#  puts c.presence_list.to_yaml
+
+  c.presence_list.each_key do |h|
+    if c.presence_list[h] == "1"
+      h = h.to_s unless h.class == String
+      g2 += 1 if genome_groups['seroresistant'].include? h
+      g1 += 1 if genome_groups['serosensitive'].include? h
+    end
+  end
+
+  if clade_specific[c_size].nil?
+    clade_specific[c_size] = {'seroresistant' => 0, 'serosensitive' => 0, 'cross_clade' => 0}
+  end
+
+  if g2 == 0 && g1 > 0
+    clade_specific[c_size]['serosensitive'] += 1
+  elsif g2 > 0 && g1 == 0
+    clade_specific[c_size]['seroresistant'] += 1
+  else
+    clade_specific[c_size]['cross_clade']   += 1
+  end
+  
 
   if c_size <= NUM_STRAINS
 
@@ -276,6 +300,10 @@ all_clusters.each_entry do |c|
                                                            gene_hash[g].product ], style: bkgrnd
     end
   else
+    #initialize the gene class size to zero, if it doesn't exist
+    gene_class_gt_core[c_size] = 0 if gene_class_gt_core[c_size].nil?
+    gene_class_gt_core[c_size] += 1
+
     wb.sheet_by_name("cluster_size_gt_#{NUM_STRAINS}").add_row [c.name, "Total Size: #{c_size}"]
     c.gene_list.each_entry do |g|
       
@@ -301,6 +329,20 @@ all_clusters.each_entry do |c|
     end
   end
 end
+#puts clade_specific.to_yaml
+#abort("testing")
 
+#print out stats on gene classes with gt core genes
+gene_class_gt_core.each do |key, value|
+  puts "#{key}\t#{value}"
+end
+
+clade_specific.each_entry do |k, v|
+  s = v['serosensitive']
+  r = v['seroresistant']
+  x = v['cross_clade']
+  puts k.to_s+"\t"+x.to_s+"\t"+s.to_s+"\t"+r.to_s
+end
+puts "total clusters seen:"+ total_clusters.to_s
 p.serialize("clustered_gene_list.xlsx")
 
