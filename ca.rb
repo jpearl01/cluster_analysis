@@ -41,6 +41,25 @@ class Gene
   attr_accessor :sequence, :name, :product, :contig, :start, :end, :organism, :strain, :db_xref, :is_complement, :size
 end
 
+#Initialize a hash with a key for each gene class (1..n) where n is the number of strains in the project, and each gene class has an entry for each group, and if it is cross-clade
+#Input is the genome_groups, and the list of Genomes
+def init_gene_class_groups(g_groups={}, g_list=[])
+  c_class = {}
+  Array(1..g_list.size+1).each_entry do |e|
+    c_class[e] = {}
+    g_groups.keys.each_entry do |k|
+      c_class[e][k] = 0
+    end
+    c_class[e]['cross_clade'] = 0
+  end
+  return c_class
+end
+
+
+#Method to track the number of clusters from either a single clade, or cross clade
+def track_groups(c_class_hash, cluster)
+
+end
 
 is_gene_seqs     = false
 is_presence_list = false
@@ -65,6 +84,7 @@ genome_groups  = YAML.load_file(opts[:genome_groups]) if !opts[:genome_groups].n
 genome_groups.each { |key, arr|
   arr.map! {|v| v.to_s}
 }
+
 
 #Read in the clusterGenes file
 File.open(opts[:clust_genes], "r") do |f|
@@ -175,7 +195,8 @@ Dir.foreach(opts[:directory]) do |f|
 
 end
 
-
+puts init_gene_class_groups(genome_groups, genome_list).to_yaml
+abort("Quick yaml check")
 
 #Add the first workbook, this holds the original annotation data for each cluster
 p = Axlsx::Package.new

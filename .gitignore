@@ -1,5 +1,6 @@
 data/*
 !data/clusterGenes
+!data/groups.yaml
 #.*
 .*
 \..*
