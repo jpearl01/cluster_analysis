@@ -28,7 +28,7 @@ end
 abort("Must have a clusterGenes file defined '-h' or '--help' for usage") if opts[:clust_genes].nil?
 abort("The clusterGenes file must actually exist '-h' or '--help' for usage") unless File.exist?(opts[:clust_genes])
 abort("Must have a directory with annotations defined '-h' or '--help' for usage") if opts[:directory].nil?
-abort("The directory must actually exist '-h' or '--help' for usage") unless Dir.exist?(opts[:directory])
+abort("The fasta annotation directory must actually exist '-h' or '--help' for usage") unless Dir.exist?(opts[:directory])
 
 #Define the Cluster and Gene classes
 
@@ -38,8 +38,9 @@ end
 
 class Gene
   #Here the db_xref is an array
-  attr_accessor :sequence, :name, :product, :contig, :start, :end, :organism, :strain, :db_xref, :is_complement
+  attr_accessor :sequence, :name, :product, :contig, :start, :end, :organism, :strain, :db_xref, :is_complement, :size
 end
+
 
 is_gene_seqs     = false
 is_presence_list = false
@@ -65,10 +66,7 @@ genome_groups.each { |key, arr|
   arr.map! {|v| v.to_s}
 }
 
-abort("Not converting to string correctly") unless genome_groups['seroresistant'].include? '7169'
-puts genome_groups.to_yaml
 #Read in the clusterGenes file
-
 File.open(opts[:clust_genes], "r") do |f|
   while (line = f.gets)
     if line.match('<cluster start>\s+(\S+)')
@@ -78,9 +76,7 @@ File.open(opts[:clust_genes], "r") do |f|
       clust.name          = $1
       clust.gene_list     = []
       clust.presence_list = {}
-
       all_clusters.push(clust)
-
     end
 
     #We are in the part of the clusterGenes file that lists the different included genes fasta style
@@ -104,7 +100,6 @@ File.open(opts[:clust_genes], "r") do |f|
     if is_presence_list 
       clust.presence_list[line.split[0]] = line.split[1] unless line.match('<strains start>')
     end
-
   end
 end
 
@@ -117,6 +112,7 @@ puts all_clusters.size
 NUM_STRAINS = Dir.entries(opts[:directory]).size - 2
 puts "The number of strains are: #{NUM_STRAINS}"
 
+#Read in all of our annotations, put them in the gene_hash
 Dir.foreach(opts[:directory]) do |f|
   next if f == '.' or f == '..'
 
@@ -129,7 +125,7 @@ Dir.foreach(opts[:directory]) do |f|
     
     if l.match('>')
 
-      #just incase we missed a contig entry, unlikely.
+      #just incase we missed a contig entry, though that is unlikely.
       next if l.match(' Contig ')
       gene = Gene.new
 
@@ -161,6 +157,11 @@ Dir.foreach(opts[:directory]) do |f|
       gene.end   = $2.to_i
       $stderr.puts "There is probably a complex gene with name #{gene.name}, currently have to manually fix this" if l.match('join\(')
 
+      if gene.is_complement
+        gene.size = gene.end - gene.start
+      else
+        gene.size = gene.start - gene.end
+      end
 
       #Adding a check to see if more than one db_xref
       gene.db_xref = l.scan(/db_xref="[^"]+/)
@@ -174,24 +175,7 @@ Dir.foreach(opts[:directory]) do |f|
 
 end
 
-#Time to add in the final loop that will print out all the annotations for each cluster, separated by line with only the cluster name.
-all_clusters.each_entry do |c|
-  puts c.name
-  if c.gene_list.size > 0
-    c.gene_list.each_entry do |g|
-      #This ruby's version of a try/catch block
-      begin
-        puts '>'+gene_hash[g].name + "\t" + gene_hash[g].product
-      rescue
-        $stderr.puts "The gene #{g} from cluster #{c.name} does not exist in the gene hash"
-        $stderr.puts gene_hash[g].inspect
-        next
-      end
-    end
-  else 
-    $stderr.puts "The cluster #{c.name} does not have any genes in it"
-  end
-end
+
 
 #Add the first workbook, this holds the original annotation data for each cluster
 p = Axlsx::Package.new
@@ -208,7 +192,7 @@ wb = p.workbook
 
 end
 
-#On second though, really all we need is a new sheet in the workbook which has the presence/absence lists
+#On second thought, really all we need is a new sheet in the workbook which has the presence/absence lists
 wb.add_worksheet(name: "Presence_Absence") do |sheet|
   sheet.add_row ["Cluster Presence/Absence"]
   sheet.add_row genome_list.sort
