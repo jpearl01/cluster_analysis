@@ -23,6 +23,7 @@ opts = Trollop::options do
   opt :directory, "Mandatory directory where the fasta annotation files are (directory cannot have other files)", type: :string, short: '-d'
   opt :gene_map, "Optional gene map file, if you need to replace gene names.  Of the form:\ncurrentName_1\tnewName_1\ncurrentName_2\tnewName_2\n", type: :string, short: '-m'
   opt :genome_groups, "Optional clade grouping file in YAML format.", type: :string, short: '-g'
+  opt :custom_list, "Optional list of genes, these clusters of interest will be put in the \"Custom_list\" worksheet.", type: :string, short: '-l'
 end
 
 abort("Must have a clusterGenes file defined '-h' or '--help' for usage") if opts[:clust_genes].nil?
@@ -68,6 +69,10 @@ genome_list      = []
 gene_hash        = {}
 gene_map         = {}     
 genome_groups    = {}
+
+#Read in the custom genes list, if exists
+custom_genes = IO.read(opts[:custom_list]).split unless opts[:custom_list].nil?
+# $stderr.puts custom_genes.to_s
 
 #Read in the map file
 if !opts[:gene_map].nil?
@@ -176,12 +181,7 @@ Dir.foreach(opts[:directory]) do |f|
       gene.start = $1.to_i
       gene.end   = $2.to_i
       $stderr.puts "There is probably a complex gene with name #{gene.name}, currently have to manually fix this" if l.match('join\(')
-
-      if gene.is_complement
-        gene.size = gene.end - gene.start
-      else
-        gene.size = gene.start - gene.end
-      end
+      gene.size = (gene.end - gene.start).abs
 
       #Adding a check to see if more than one db_xref
       gene.db_xref = l.scan(/db_xref="[^"]+/)
@@ -196,7 +196,7 @@ Dir.foreach(opts[:directory]) do |f|
 end
 
 puts init_gene_class_groups(genome_groups, genome_list).to_yaml
-abort("Quick yaml check")
+#abort("Quick yaml check")
 
 #Add the first workbook, this holds the original annotation data for each cluster
 p = Axlsx::Package.new
@@ -208,7 +208,7 @@ wb = p.workbook
 
   wb.add_worksheet(:name => "cluster_size_#{i}") do |sheet|
     sheet.add_row ["All clusters of size #{i}"]
-    sheet.add_row %w(Strain Gene_Name Contig Start End Complement Product)
+    sheet.add_row %w(Strain Gene_Name Contig Start End Size Complement Product)
   end
 
 end
@@ -223,7 +223,13 @@ end
 #Adding a worksheet for that eventuality, this isn't an issue in the presence workbook, as if it is there at least once it is a 1, 0 otherwise
 wb.add_worksheet(name: "cluster_size_gt_#{NUM_STRAINS}" ) do |sheet|
   sheet.add_row ["All clusters greater than size #{NUM_STRAINS}"]
-  sheet.add_row %w(Strain Gene_Name Contig Start End Complement Product)
+  sheet.add_row %w(Strain Gene_Name Contig Start End Size Complement Product)
+end
+
+#And add a custom sheet for when someone wants a list of clusters containing specific genes
+wb.add_worksheet(name: "Custom_list") do |sheet| 
+  sheet.add_row ["Custom cluster list"]
+  sheet.add_row %w(Strain Gene_Name Contig Start End Size Complement Product)
 end
 
 background = ''
@@ -278,12 +284,13 @@ all_clusters.each_entry do |c|
     clade_specific[c_size]['cross_clade']   += 1
   end
   
+  is_custom_gene = false
 
   if c_size <= NUM_STRAINS
 
     wb.sheet_by_name("cluster_size_#{c_size}").add_row [c.name]
     c.gene_list.each_entry do |g|
-
+      abort("#{g.name}") if gene_hash[g].nil?
       #TODO: Make this be able to read in arbitrary genome groupings
       name = gene_hash[g].strain.to_s unless gene_hash[g].strain.class == String
       name = gene_hash[g].strain if gene_hash[g].strain.class == String
@@ -296,11 +303,15 @@ all_clusters.each_entry do |c|
         bkgrnd = background
       end
 
+      #check if this is a custom gene
+      is_custom_gene = true if !custom_genes.nil? && (custom_genes.include? gene_hash[g].name)
+
       wb.sheet_by_name("cluster_size_#{c_size}").add_row [ gene_hash[g].strain, 
                                                            gene_hash[g].name, 
                                                            gene_hash[g].contig, 
                                                            gene_hash[g].start, 
-                                                           gene_hash[g].end, 
+                                                           gene_hash[g].end,
+                                                           gene_hash[g].size,
                                                            gene_hash[g].is_complement, 
                                                            gene_hash[g].product ], style: bkgrnd
     end
@@ -324,13 +335,42 @@ all_clusters.each_entry do |c|
         bkgrnd = background
       end
 
+      #check if this is a custom gene
+      is_custom_gene = true if !custom_genes.nil? && (custom_genes.include? gene_hash[g].name)
+
       wb.sheet_by_name("cluster_size_gt_#{NUM_STRAINS}").add_row [ gene_hash[g].strain, 
                                                                    gene_hash[g].name, 
                                                                    gene_hash[g].contig, 
                                                                    gene_hash[g].start, 
-                                                                   gene_hash[g].end, 
+                                                                   gene_hash[g].end,
+                                                                   gene_hash[g].size,
                                                                    gene_hash[g].is_complement, 
                                                                    gene_hash[g].product ], style: bkgrnd
+    end
+  end
+  if is_custom_gene
+    wb.sheet_by_name("Custom_list").add_row [c.name, "Total Size: #{c_size}"]
+    c.gene_list.each_entry do |g|
+      #TODO: Make this be able to read in arbitrary genome groupings
+      name = gene_hash[g].strain.to_s unless gene_hash[g].strain.class == String
+      name = gene_hash[g].strain if gene_hash[g].strain.class == String
+      bkgrnd = 0
+      if genome_groups['seroresistant'].include? name
+        bkgrnd = group2
+      elsif genome_groups['serosensitive'].include? name
+        bkgrnd = group1
+      else 
+        bkgrnd = background
+      end
+      wb.sheet_by_name("Custom_list").add_row [ gene_hash[g].strain, 
+                                                                   gene_hash[g].name, 
+                                                                   gene_hash[g].contig, 
+                                                                   gene_hash[g].start, 
+                                                                   gene_hash[g].end,
+                                                                   gene_hash[g].size,
+                                                                   gene_hash[g].is_complement, 
+                                                                   gene_hash[g].product ], style: bkgrnd
+      
     end
   end
 end
@@ -348,6 +388,7 @@ clade_specific.each_entry do |k, v|
   x = v['cross_clade']
   puts k.to_s+"\t"+x.to_s+"\t"+s.to_s+"\t"+r.to_s
 end
-puts "total clusters seen:"+ total_clusters.to_s
+
+puts "total clusters seen:"+ all_clusters.size.to_s
 p.serialize("clustered_gene_list.xlsx")
 
