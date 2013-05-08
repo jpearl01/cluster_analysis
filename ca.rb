@@ -69,6 +69,7 @@ genome_list      = []
 gene_hash        = {}
 gene_map         = {}     
 genome_groups    = {}
+mapped_genomes   = {}
 
 #Read in the custom genes list, if exists
 custom_genes = IO.read(opts[:custom_list]).split unless opts[:custom_list].nil?
@@ -80,6 +81,9 @@ if !opts[:gene_map].nil?
     while (line = f.gets)
       a = line.split
       gene_map[a[0]] = a[1]
+      g1 = a[0].split("_")[0]
+      g2 = a[1].split("_")[0]
+      mapped_genomes[g1] = g2
     end
   end
 end
@@ -144,7 +148,7 @@ Dir.foreach(opts[:directory]) do |f|
   fh = File.open(d+f, 'r')
   genome_name = File.basename(f, '.*')
   genome_list.push(genome_name)
-  puts "#{f} is the current file"
+  puts "Processing #{f}..."
 
   fh.each_line do |l|
     
@@ -195,7 +199,7 @@ Dir.foreach(opts[:directory]) do |f|
 
 end
 
-puts init_gene_class_groups(genome_groups, genome_list).to_yaml
+#puts init_gene_class_groups(genome_groups, genome_list).to_yaml
 #abort("Quick yaml check")
 
 #Add the first workbook, this holds the original annotation data for each cluster
@@ -216,7 +220,13 @@ end
 #On second thought, really all we need is a new sheet in the workbook which has the presence/absence lists
 wb.add_worksheet(name: "Presence_Absence") do |sheet|
   sheet.add_row ["Cluster Presence/Absence"]
-  sheet.add_row genome_list.sort
+  sheet.add_row genome_list.sort.unshift('Cluster_Name')
+end
+
+#Need to add a worksheet for the pres/abs of fullnames
+wb.add_worksheet(name: "Pres_Abs_fullname") do |sheet|
+  sheet.add_row ["Cluster Presence/Absence"]
+  sheet.add_row genome_list.sort.unshift('Cluster_Name')
 end
 
 #There is a chance we'll run into clusters that have more genes than the number of strains (duplicate genes and whatnot)
@@ -257,6 +267,23 @@ all_clusters.each_entry do |c|
     pres.push(p[1])
   end
   wb.sheet_by_name("Presence_Absence").add_row pres
+
+  #Again, but this time get the gene names from the cluster
+  pres = []
+  pres.push(c.name)
+  c.presence_list.sort_by {|genome, pres| genome}.each_entry do |p|
+    genes = []
+    c.gene_list.each do |g|
+      genes.push(g) if g.match(p[0])
+      genes.push(g) if !mapped_genomes.empty? && !mapped_genomes[p[0]].nil? && g.match("#{mapped_genomes[p[0]]}_")
+    end
+    joined_genes = genes.join(",") if genes.size > 1
+    joined_genes = genes[0] if genes.size == 1
+    joined_genes = 0 if genes.size == 0
+    pres.push(joined_genes)
+    $stderr.puts("The presence list and the gene list disagree in cluster #{c.name}") if joined_genes == 0 && p[1] == 1
+  end
+  wb.sheet_by_name("Pres_Abs_fullname").add_row pres
 
   #ok, gotta check each clade's members
   g1 = 0
