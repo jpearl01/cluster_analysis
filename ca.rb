@@ -280,8 +280,9 @@ all_clusters.each_entry do |c|
     joined_genes = genes.join(",") if genes.size > 1
     joined_genes = genes[0] if genes.size == 1
     joined_genes = 0 if genes.size == 0
+    joined_genes = 1 if joined_genes == 0 && p[1].to_i == 1
     pres.push(joined_genes)
-    $stderr.puts("The presence list and the gene list disagree in cluster #{c.name}") if joined_genes == 0 && p[1] == 1
+#    $stderr.puts("The presence list and the gene list disagree in cluster #{c.name}") if joined_genes == 0 && p[1].to_i == 1
   end
   wb.sheet_by_name("Pres_Abs_fullname").add_row pres
 
