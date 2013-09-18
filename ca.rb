@@ -30,6 +30,9 @@ abort("Must have a clusterGenes file defined '-h' or '--help' for usage") if opt
 abort("The clusterGenes file must actually exist '-h' or '--help' for usage") unless File.exist?(opts[:clust_genes])
 abort("Must have a directory with annotations defined '-h' or '--help' for usage") if opts[:directory].nil?
 abort("The fasta annotation directory must actually exist '-h' or '--help' for usage") unless Dir.exist?(opts[:directory])
+if !opts[:custom_list].nil?
+  abort("You provided a custom_list but it doesn't exist!") unless File.exists?(opts[:custom_list])
+end
 
 #Define the Cluster and Gene classes
 
@@ -39,7 +42,7 @@ end
 
 class Gene
   #Here the db_xref is an array
-  attr_accessor :sequence, :name, :product, :contig, :start, :end, :organism, :strain, :db_xref, :is_complement, :size
+  attr_accessor :sequence, :name, :product, :contig, :start, :end, :organism, :strain, :db_xref, :is_complement, :size, :clade
 end
 
 #Initialize a hash with a key for each gene class (1..n) where n is the number of strains in the project, and each gene class has an entry for each group, and if it is cross-clade
@@ -72,7 +75,7 @@ genome_groups    = {}
 
 #Read in the custom genes list, if exists
 custom_genes = IO.read(opts[:custom_list]).split unless opts[:custom_list].nil?
-# $stderr.puts custom_genes.to_s
+
 
 #Read in the map file
 if !opts[:gene_map].nil?
@@ -128,7 +131,7 @@ File.open(opts[:clust_genes], "r") do |f|
   end
 end
 
-puts all_clusters.size
+puts "Total number of clusters is: " + all_clusters.size.to_s
 
 
 
@@ -195,8 +198,8 @@ Dir.foreach(opts[:directory]) do |f|
 
 end
 
-puts init_gene_class_groups(genome_groups, genome_list).to_yaml
-#abort("Quick yaml check")
+#Initialize the gene classes based on the yaml file
+init_gene_class_groups(genome_groups, genome_list) unless opts[:genome_groups].nil? 
 
 #Add the first workbook, this holds the original annotation data for each cluster
 p = Axlsx::Package.new
@@ -216,7 +219,15 @@ end
 #On second thought, really all we need is a new sheet in the workbook which has the presence/absence lists
 wb.add_worksheet(name: "Presence_Absence") do |sheet|
   sheet.add_row ["Cluster Presence/Absence"]
-  sheet.add_row genome_list.sort
+  row_titles = genome_list.sort.unshift('cluster_names')
+  sheet.add_row row_titles
+end
+
+#Need to add in another worksheet which will keep track of the names of the genes present in the cluster
+wb.add_worksheet(name: "Pres_abs_names") do |sheet|
+  sheet.add_row ["Cluster Presence/Absence"]
+  row_titles = genome_list.sort.unshift('cluster_names')
+  sheet.add_row row_titles
 end
 
 #There is a chance we'll run into clusters that have more genes than the number of strains (duplicate genes and whatnot)
@@ -261,8 +272,6 @@ all_clusters.each_entry do |c|
   #ok, gotta check each clade's members
   g1 = 0
   g2 = 0
-
-#  puts c.presence_list.to_yaml
 
   c.presence_list.each_key do |h|
     if c.presence_list[h] == "1"
