@@ -15,7 +15,7 @@ require 'yaml'
 #files for the annotations of each genome.
 #################################
 
-d = '/home/josh/workspace/bioruby/cluster_analysis/data/annotations/'
+
 
 #Setup options hash
 opts = Trollop::options do
@@ -143,12 +143,13 @@ puts "Total number of clusters is: " + all_clusters.size.to_s
 #also have to account for '.' and '..' so minus 2
 NUM_STRAINS = Dir.entries(opts[:directory]).size - 2
 puts "The number of strains are: #{NUM_STRAINS}"
+d = Dir.new(opts[:directory])
 
 #Read in all of our annotations, put them in the gene_hash
 Dir.foreach(opts[:directory]) do |f|
   next if f == '.' or f == '..'
-
-  fh = File.open(d+f, 'r')
+  
+  fh = File.open(d.path + f, 'r')
   genome_name = File.basename(f, '.*')
   genome_list.push(genome_name)
   puts "Processing #{f}..."
@@ -288,9 +289,9 @@ all_clusters.each_entry do |c|
     joined_genes = 0 if genes.size == 0
     joined_genes = 1 if joined_genes == 0 && p[1].to_i == 1
     pres.push(joined_genes)
-#    $stderr.puts("The presence list and the gene list disagree in cluster #{c.name}") if joined_genes == 0 && p[1].to_i == 1
+    $stderr.puts("The presence list and the gene list disagree in cluster #{c.name}") if joined_genes == 0 && p[1].to_i == 1
   end
-  wb.sheet_by_name("Pres_Abs_fullname").add_row pres
+  wb.sheet_by_name("Pres_abs_names").add_row pres
 
   #ok, gotta check each clade's members
   g1 = 0
