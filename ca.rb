@@ -16,10 +16,13 @@ require 'yaml'
 #################################
 
 
+#############################################################
+#Define options, variables, and classes
+#############################################################
 
 #Setup options hash
 opts = Trollop::options do
-  opt :clust_genes, "Mandatory clusterGenes file (output from Justin's clsuterGenes.pl program)", type: :string, short: '-c'                     
+  opt :clust_genes, "Mandatory clusterGenes file (output from Justin's clsuterGenes.pl program)", type: :string, short: '-c'   
   opt :directory, "Mandatory directory where the fasta annotation files are (directory cannot have other files)", type: :string, short: '-d'
   opt :gene_map, "Optional gene map file, if you need to replace gene names.  Of the form:\ncurrentName_1\tnewName_1\ncurrentName_2\tnewName_2\n", type: :string, short: '-m'
   opt :genome_groups, "Optional clade grouping file in YAML format.", type: :string, short: '-g'
@@ -34,7 +37,7 @@ if !opts[:custom_list].nil?
   abort("You provided a custom_list but it doesn't exist!") unless File.exists?(opts[:custom_list])
 end
 
-#Define the Cluster and Gene classes
+#Define Classes
 
 class Cluster
   attr_accessor :gene_list, :presence_list, :name
@@ -42,41 +45,56 @@ end
 
 class Gene
   #Here the db_xref is an array
-  attr_accessor :sequence, :name, :product, :contig, :start, :end, :organism, :strain, :db_xref, :is_complement, :size, :clade
+  attr_accessor :sequence, :name, :product, :contig, :start, :end, :organism, :strain, :db_xref, :is_complement, :size
 end
 
-#Initialize a hash with a key for each gene class (1..n) where n is the number of strains in the project, and each gene class has an entry for each group, and if it is cross-clade
-#Input is the genome_groups, and the list of Genomes
-def init_gene_class_groups(g_groups={}, g_list=[])
-  c_class = {}
-  Array(1..g_list.size+1).each_entry do |e|
-    c_class[e] = {}
-    g_groups.keys.each_entry do |k|
-      c_class[e][k] = 0
-    end
-    c_class[e]['cross_clade'] = 0
-  end
-  return c_class
+class Group
+  attr_accessor :name, :genomes, :color
+end
+
+#create an instance of the group class which holds all the clade information, i.e. which genomes 
+def init_groups(genome_groups_file, default_colors)
+  group_array = []
+  i = 0
+  #Read in the grouping file
+  YAML.load_file(genome_groups_file).each { |key, arr|
+    arr.map! {|v| v.to_s}
+    g = Group.new
+    g.name = key
+    g.genomes = arr
+    g.color = default_colors[i]
+    group_array.push(g)
+    i += 1
+  }
+  return group_array
 end
 
 
-#Method to track the number of clusters from either a single clade, or cross clade
-def track_groups(c_class_hash, cluster)
+is_gene_seqs       = false
+is_presence_list   = false
+all_clusters       = []
+genome_list        = []
+gene_hash          = {}
+gene_map           = {}
+genome_groups      = {}
+mapped_genomes     = {}
+#These are the default colors for the different clades, gotten from the Brewers Palettes
+default_group_colors = %w(8dd3c7 8dd3c7 ffffb3 ffffb3 bebada bebada fb8072 fb8072 80b1d3 80b1d3 fdb462 fdb462 b3de69 b3de69 fccde5 fccde5 d9d9d9 d9d9d9 bc80bd bc80bd ccebc5 ccebc5 ffed6f ffed6f)
+group_styles       = {} 
+#A hash to contain gene classes with more than the normal core max (duplicates, broken gene annotations etc.)
+#Also one for the number of clade specific genes, and the number of genes that are cross clade
+gene_class_gt_core = {}
+clade_specific     = {}
 
-end
-
-is_gene_seqs     = false
-is_presence_list = false
-all_clusters     = []
-genome_list      = []
-gene_hash        = {}
-gene_map         = {}     
-genome_groups    = {}
-mapped_genomes   = {}
+#############################################################
+#Initialize all data structures
+#############################################################
 
 #Read in the custom genes list, if exists
 custom_genes = IO.read(opts[:custom_list]).split unless opts[:custom_list].nil?
 
+#Read in the groups file
+genome_groups = init_groups(opts[:genome_groups], default_group_colors)
 
 #Read in the map file
 if !opts[:gene_map].nil?
@@ -90,13 +108,6 @@ if !opts[:gene_map].nil?
     end
   end
 end
-
-#Read in the grouping file
-genome_groups  = YAML.load_file(opts[:genome_groups]) if !opts[:genome_groups].nil?
-genome_groups.each { |key, arr|
-  arr.map! {|v| v.to_s}
-}
-
 
 #Read in the clusterGenes file
 File.open(opts[:clust_genes], "r") do |f|
@@ -203,8 +214,10 @@ Dir.foreach(opts[:directory]) do |f|
 
 end
 
-#Initialize the gene classes based on the yaml file
-init_gene_class_groups(genome_groups, genome_list) unless opts[:genome_groups].nil? 
+#############################################################
+#Create the excel workbook, and worksheets
+#############################################################
+
 
 #Add the first workbook, this holds the original annotation data for each cluster
 p = Axlsx::Package.new
@@ -213,15 +226,13 @@ wb = p.workbook
 
 #Build the sheets needed for this project into the workbook
 (1..NUM_STRAINS).each_entry do |i|
-
   wb.add_worksheet(:name => "cluster_size_#{i}") do |sheet|
     sheet.add_row ["All clusters of size #{i}"]
     sheet.add_row %w(Strain Gene_Name Contig Start End Size Complement Product)
   end
-
 end
 
-#On second thought, really all we need is a new sheet in the workbook which has the presence/absence lists
+#We need a new sheet in the workbook which has the presence/absence lists
 wb.add_worksheet(name: "Presence_Absence") do |sheet|
   sheet.add_row ["Cluster Presence/Absence"]
   row_titles = genome_list.sort.unshift('cluster_names')
@@ -249,25 +260,21 @@ wb.add_worksheet(name: "Custom_list") do |sheet|
   sheet.add_row %w(Strain Gene_Name Contig Start End Size Complement Product)
 end
 
-background = ''
-group1     = ''
-group2     = ''
-#Try adding styles here?
-wb.styles do |s|
-  background = s.add_style bg_color: 'FFFFCC'
-  group1     = s.add_style bg_color: '87CEFA'
-  group2     = s.add_style bg_color: 'ecb0b0'
-end
 
-#Need a hash to contain gene classes with more than the normal core max (duplicates, broken gene annotations etc.) so I can print out some stats on it
-#Also want to find the number of clade specific genes, and the number of genes that are cross clade
-gene_class_gt_core = {}
-clade_specific     = {}
+#############################################################
+#Styling for the excel workbook, and worksheets
+#############################################################
+wb.styles do |s|
+  count = 0
+  genome_groups.each do |g|
+    group_styles[g.name] = s.add_style bg_color: g.color
+    count += 1
+  end
+end
 
 #Now populate the worksheets with the different clusters
 all_clusters.each_entry do |c|
   c_size = c.gene_list.size
-  #Annoyingly, I'm not sure how to do the pres/absence thing except by a little bit of a wonky enumerable
   pres = []
   pres.push(c.name)
   c.presence_list.sort_by {|genome, pres| genome}.each_entry do |p|
@@ -292,30 +299,6 @@ all_clusters.each_entry do |c|
     $stderr.puts("The presence list and the gene list disagree in cluster #{c.name}") if joined_genes == 0 && p[1].to_i == 1
   end
   wb.sheet_by_name("Pres_abs_names").add_row pres
-
-  #ok, gotta check each clade's members
-  g1 = 0
-  g2 = 0
-
-  c.presence_list.each_key do |h|
-    if c.presence_list[h] == "1"
-      h = h.to_s unless h.class == String
-      g2 += 1 if genome_groups['seroresistant'].include? h
-      g1 += 1 if genome_groups['serosensitive'].include? h
-    end
-  end
-
-  if clade_specific[c_size].nil?
-    clade_specific[c_size] = {'seroresistant' => 0, 'serosensitive' => 0, 'cross_clade' => 0}
-  end
-
-  if g2 == 0 && g1 > 0
-    clade_specific[c_size]['serosensitive'] += 1
-  elsif g2 > 0 && g1 == 0
-    clade_specific[c_size]['seroresistant'] += 1
-  else
-    clade_specific[c_size]['cross_clade']   += 1
-  end
   
   is_custom_gene = false
 
@@ -323,17 +306,15 @@ all_clusters.each_entry do |c|
 
     wb.sheet_by_name("cluster_size_#{c_size}").add_row [c.name]
     c.gene_list.each_entry do |g|
-      abort("#{g.name}") if gene_hash[g].nil?
+      abort("Gene #{g.name} is not in the gene hash") if gene_hash[g].nil?
       #TODO: Make this be able to read in arbitrary genome groupings
-      name = gene_hash[g].strain.to_s unless gene_hash[g].strain.class == String
-      name = gene_hash[g].strain if gene_hash[g].strain.class == String
+      name = gene_hash[g].strain
+      name.to_s unless name == String
       bkgrnd = 0
-      if genome_groups['seroresistant'].include? name
-        bkgrnd = group2
-      elsif genome_groups['serosensitive'].include? name
-        bkgrnd = group1
-      else
-        bkgrnd = background
+      genome_groups.each do |g|
+        if g.genomes.include? name
+          bkgrnd = group_styles[g.name]
+        end
       end
 
       #check if this is a custom gene
@@ -360,12 +341,10 @@ all_clusters.each_entry do |c|
       name = gene_hash[g].strain.to_s unless gene_hash[g].strain.class == String
       name = gene_hash[g].strain if gene_hash[g].strain.class == String
       bkgrnd = 0
-      if genome_groups['seroresistant'].include? name
-        bkgrnd = group2
-      elsif genome_groups['serosensitive'].include? name
-        bkgrnd = group1
-      else 
-        bkgrnd = background
+      genome_groups.each do |g|
+        if g.genomes.include? name
+          bkgrnd = group_styles[g.name]
+        end
       end
 
       #check if this is a custom gene
@@ -388,13 +367,12 @@ all_clusters.each_entry do |c|
       name = gene_hash[g].strain.to_s unless gene_hash[g].strain.class == String
       name = gene_hash[g].strain if gene_hash[g].strain.class == String
       bkgrnd = 0
-      if genome_groups['seroresistant'].include? name
-        bkgrnd = group2
-      elsif genome_groups['serosensitive'].include? name
-        bkgrnd = group1
-      else 
-        bkgrnd = background
+      genome_groups.each do |g|
+        if g.genomes.include? name
+          bkgrnd = group_styles[g.name]
+        end
       end
+
       wb.sheet_by_name("Custom_list").add_row [ gene_hash[g].strain, 
                                                                    gene_hash[g].name, 
                                                                    gene_hash[g].contig, 
