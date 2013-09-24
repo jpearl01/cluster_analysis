@@ -79,12 +79,13 @@ gene_map           = {}
 genome_groups      = {}
 mapped_genomes     = {}
 #These are the default colors for the different clades, gotten from the Brewers Palettes
-default_group_colors = %w(8dd3c7 8dd3c7 ffffb3 ffffb3 bebada bebada fb8072 fb8072 80b1d3 80b1d3 fdb462 fdb462 b3de69 b3de69 fccde5 fccde5 d9d9d9 d9d9d9 bc80bd bc80bd ccebc5 ccebc5 ffed6f ffed6f)
+default_group_colors = %w( 8dd3c7 ffffb3 bebada fb8072 80b1d3 fdb462 b3de69 fccde5 d9d9d9 bc80bd ccebc5 ffed6f )
 group_styles       = {} 
 #A hash to contain gene classes with more than the normal core max (duplicates, broken gene annotations etc.)
 #Also one for the number of clade specific genes, and the number of genes that are cross clade
 gene_class_gt_core = {}
 clade_specific     = {}
+white_style = ""
 
 #############################################################
 #Initialize all data structures
@@ -264,13 +265,18 @@ end
 #############################################################
 #Styling for the excel workbook, and worksheets
 #############################################################
+
 wb.styles do |s|
-  count = 0
   genome_groups.each do |g|
     group_styles[g.name] = s.add_style bg_color: g.color
-    count += 1
+    puts g.color
   end
+  white_style = s.add_style bg_color: "ff"
 end
+
+#############################################################
+#Populate worksheets
+#############################################################
 
 #Now populate the worksheets with the different clusters
 all_clusters.each_entry do |c|
@@ -307,10 +313,9 @@ all_clusters.each_entry do |c|
     wb.sheet_by_name("cluster_size_#{c_size}").add_row [c.name]
     c.gene_list.each_entry do |g|
       abort("Gene #{g.name} is not in the gene hash") if gene_hash[g].nil?
-      #TODO: Make this be able to read in arbitrary genome groupings
       name = gene_hash[g].strain
       name.to_s unless name == String
-      bkgrnd = 0
+      bkgrnd = white_style
       genome_groups.each do |g|
         if g.genomes.include? name
           bkgrnd = group_styles[g.name]
@@ -336,11 +341,9 @@ all_clusters.each_entry do |c|
 
     wb.sheet_by_name("cluster_size_gt_#{NUM_STRAINS}").add_row [c.name, "Total Size: #{c_size}"]
     c.gene_list.each_entry do |g|
-      
-      #TODO: Make this be able to read in arbitrary genome groupings
       name = gene_hash[g].strain.to_s unless gene_hash[g].strain.class == String
       name = gene_hash[g].strain if gene_hash[g].strain.class == String
-      bkgrnd = 0
+      bkgrnd = white_style
       genome_groups.each do |g|
         if g.genomes.include? name
           bkgrnd = group_styles[g.name]
@@ -363,10 +366,9 @@ all_clusters.each_entry do |c|
   if is_custom_gene
     wb.sheet_by_name("Custom_list").add_row [c.name, "Total Size: #{c_size}"]
     c.gene_list.each_entry do |g|
-      #TODO: Make this be able to read in arbitrary genome groupings
       name = gene_hash[g].strain.to_s unless gene_hash[g].strain.class == String
       name = gene_hash[g].strain if gene_hash[g].strain.class == String
-      bkgrnd = 0
+      bkgrnd = white_style
       genome_groups.each do |g|
         if g.genomes.include? name
           bkgrnd = group_styles[g.name]
@@ -374,13 +376,13 @@ all_clusters.each_entry do |c|
       end
 
       wb.sheet_by_name("Custom_list").add_row [ gene_hash[g].strain, 
-                                                                   gene_hash[g].name, 
-                                                                   gene_hash[g].contig, 
-                                                                   gene_hash[g].start, 
-                                                                   gene_hash[g].end,
-                                                                   gene_hash[g].size,
-                                                                   gene_hash[g].is_complement, 
-                                                                   gene_hash[g].product ], style: bkgrnd
+                                                gene_hash[g].name, 
+                                                gene_hash[g].contig, 
+                                                gene_hash[g].start, 
+                                                gene_hash[g].end,
+                                                gene_hash[g].size,
+                                                gene_hash[g].is_complement, 
+                                                gene_hash[g].product ], style: bkgrnd
       
     end
   end

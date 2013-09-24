@@ -3,28 +3,16 @@
 set3 = []
 
 set3.push([141,211,199].map! {|i| i.to_s(16)}.join)
-set3.push([141,211,199].map! {|i| i.to_s(16)}.join)
-set3.push([255,255,179].map! {|i| i.to_s(16)}.join)
 set3.push([255,255,179].map! {|i| i.to_s(16)}.join)
 set3.push([190,186,218].map! {|i| i.to_s(16)}.join)
-set3.push([190,186,218].map! {|i| i.to_s(16)}.join)
-set3.push([251,128,114].map! {|i| i.to_s(16)}.join)
 set3.push([251,128,114].map! {|i| i.to_s(16)}.join)
 set3.push([128,177,211].map! {|i| i.to_s(16)}.join)
-set3.push([128,177,211].map! {|i| i.to_s(16)}.join)
-set3.push([253,180,98].map! {|i| i.to_s(16)}.join)
 set3.push([253,180,98].map! {|i| i.to_s(16)}.join) 
 set3.push([179,222,105].map! {|i| i.to_s(16)}.join)
-set3.push([179,222,105].map! {|i| i.to_s(16)}.join)
-set3.push([252,205,229].map! {|i| i.to_s(16)}.join)
 set3.push([252,205,229].map! {|i| i.to_s(16)}.join)
 set3.push([217,217,217].map! {|i| i.to_s(16)}.join)
-set3.push([217,217,217].map! {|i| i.to_s(16)}.join)
-set3.push([188,128,189].map! {|i| i.to_s(16)}.join)
 set3.push([188,128,189].map! {|i| i.to_s(16)}.join)
 set3.push([204,235,197].map! {|i| i.to_s(16)}.join)
-set3.push([204,235,197].map! {|i| i.to_s(16)}.join)
-set3.push([255,237,111].map! {|i| i.to_s(16)}.join)
 set3.push([255,237,111].map! {|i| i.to_s(16)}.join)
 
-set3.each { |a| puts a}
+set3.each { |a| print a + " "}
