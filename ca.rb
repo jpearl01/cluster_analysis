@@ -95,7 +95,7 @@ white_style = ""
 custom_genes = IO.read(opts[:custom_list]).split unless opts[:custom_list].nil?
 
 #Read in the groups file
-genome_groups = init_groups(opts[:genome_groups], default_group_colors)
+genome_groups = init_groups(opts[:genome_groups], default_group_colors) unless opts[:genome_groups].nil?
 
 #Read in the map file
 if !opts[:gene_map].nil?
