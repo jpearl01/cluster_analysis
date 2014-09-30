@@ -144,6 +144,7 @@ File.open(opts[:clust_genes], "r") do |f|
     if is_presence_list 
       clust.presence_list[line.split[0]] = line.split[1] unless line.match('<strains start>')
     end
+    abort "#{clust.name} has no genes!" if line.match('<strains stop>') && clust.gene_list.size == 0 
   end
 end
 
@@ -309,7 +310,6 @@ all_clusters.each_entry do |c|
   is_custom_gene = false
 
   if c_size <= NUM_STRAINS
-
     wb.sheet_by_name("cluster_size_#{c_size}").add_row [c.name]
     c.gene_list.each_entry do |g|
       abort("Gene #{g.name} is not in the gene hash") if gene_hash[g].nil?
